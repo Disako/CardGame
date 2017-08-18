@@ -312,7 +312,7 @@ public class CardBehaviour : MonoBehaviour {
         {
             return new Position()
             {
-                Location = new Vector3(0, 3.81f, -3.34f),
+                Location = new Vector3(0, 5.29f, -4.12f),
                 Rotation = Quaternion.Euler(-20, 0, 0)
             };
         }
@@ -325,7 +325,7 @@ public class CardBehaviour : MonoBehaviour {
                     if (Owner == Team.Player)
                         return new Position()
                         {
-                            Location = new Vector3(XIndex * 0.9f - (cardsInHand - 1) * 0.45f, 1.55f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * XIndex, -3.26f - transform.localScale.y * XIndex + (MouseOver ? 0.2f : 0f)),
+                            Location = new Vector3(XIndex * 0.9f - (cardsInHand - 1) * 0.45f, 2.76f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * XIndex, -4.17f - transform.localScale.y * XIndex + (MouseOver ? 0.2f : 0f)),
                             Rotation = Quaternion.Euler(-20, 0, 0)
                         };
                     else
@@ -340,7 +340,7 @@ public class CardBehaviour : MonoBehaviour {
                     if (Owner == Team.Player)
                         return new Position()
                         {
-                            Location = new Vector3(-1.346f + 2.692f * XIndex / (cardsInHand - 1), 1.55f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * XIndex, -3.26f - transform.localScale.y * XIndex + (MouseOver ? 0.2f : 0f)),
+                            Location = new Vector3(-1.346f + 2.692f * XIndex / (cardsInHand - 1), 2.76f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * XIndex, -4.17f - transform.localScale.y * XIndex + (MouseOver ? 0.2f : 0f)),
                             Rotation = Quaternion.Euler(-20, 0, 0)
                         };
                     else
