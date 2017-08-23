@@ -78,6 +78,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Board\BoardBehaviour.cs" />
     <Compile Include="Assets\Card\CardBehaviour.cs" />
     <Compile Include="Assets\Deck\DeckBehaviour.cs" />
   </ItemGroup>

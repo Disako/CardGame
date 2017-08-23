@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class DeckBehaviour : MonoBehaviour {
@@ -44,9 +45,57 @@ public class DeckBehaviour : MonoBehaviour {
     void Start () {
         SetupTexture();
     }
-	
-	// Update is called once per frame
-	void Update () {
+
+    public void Initialize(DeckState state, IGameEngine gameEngine)
+    {
+        GameEngine = gameEngine;
+        SetState(state);
+        GameEngine.GameStateChanged += GameEngine_GameStateChanged;
+    }
+
+    private void GameEngine_GameStateChanged(object sender, GameStateEventArgs e)
+    {
+        SetState(e.State.DeckStates.Single(s => s.Owner == State.Owner));
+    }
+
+    private void SetState(DeckState state)
+    {
+        foreach(var card in state.KnownCards)
+        {
+            bool found = false;
+            foreach(var existingCard in FindObjectsOfType<CardBehaviour>())
+            {
+                if(card.ID == existingCard.State.ID)
+                {
+                    found = true;
+                    existingCard.SetState(card);
+                    break;
+                }
+            }
+            if(!found)
+            {
+                var newCard = Instantiate(CardTemplate).GetComponent<CardBehaviour>();
+                newCard.Initialize(card, this);
+            }
+        }
+        var cardsToRemove = new List<CardBehaviour>();
+        
+        foreach(var existingCard in FindObjectsOfType<CardBehaviour>())
+        {
+            if(existingCard.Owner == state.Owner && !state.KnownCards.Any(c => c.ID == existingCard.State.ID))
+            {
+                cardsToRemove.Add(existingCard);
+            }
+        }
+        foreach(var card in cardsToRemove)
+        {
+            Destroy(card);
+        }
+        State = state;
+    }
+
+    // Update is called once per frame
+    void Update () {
         transform.position = new Vector3(transform.position.x, GetDeckHeight(), transform.position.z);
 	}
 
@@ -56,16 +105,11 @@ public class DeckBehaviour : MonoBehaviour {
         return -0.5f + Math.Min(0.005f * GetCardsInDeck(), 1f);
     }
 
-    public bool IsPlayer;
-    public Team Owner
-    {
-        get { return IsPlayer ? Team.Player : Team.Opponent; }
-        set { IsPlayer = value == Team.Player; }
-    }
+    public DeckState State { get; private set; }
 
     private void OnMouseDown()
     {
-        if(Owner == Team.Player)
+        if(State.Owner == Team.Player)
             DrawCard();
     }
 
@@ -73,26 +117,33 @@ public class DeckBehaviour : MonoBehaviour {
 
     public void DrawCard()
     {
-        if (CardsInDeck > 0)
+        if (State.CardsInDeck > 0)
         {
-            var card = Instantiate(CardTemplate).GetComponent<CardBehaviour>();
-            card.Initialize(CardBehaviour.Zone.Deck, this);
-            card.SetLocation(CardBehaviour.Zone.Hand, GetCardsInHand());
-            CardsInHand++;
-            CardsInDeck--;
+            GameEngine.DrawCard();
         }
     }
 
-    private int CardsInDeck = 60;
-    private int CardsInHand = 0;
+    private IGameEngine GameEngine;
 
     public int GetCardsInHand()
     {
-        return CardsInHand;
+        if (State == null) return 0;
+        return State.KnownCards.Count(c => c.CurrentZone == Zone.Hand);
     }
 
     public int GetCardsInDeck()
     {
-        return CardsInDeck;
+        if (State == null) return 0;
+        return State.CardsInDeck;
     }
 }
+
+public class DeckState
+{
+    public int CardsInDeck = 60;
+    public Team Owner;
+    public List<CardState> KnownCards;
+}
+
+
+    

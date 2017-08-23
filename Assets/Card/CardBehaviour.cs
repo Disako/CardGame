@@ -66,7 +66,6 @@ public class CardBehaviour : MonoBehaviour {
         string[] parts = text.Split(' ');
         for (int i = 0; i < parts.Length; i++)
         {
-            Debug.Log(parts[i]);
             mesh.text += parts[i] + " ";
             if (renderer.bounds.extents.x > rowLimit)
             {
@@ -83,7 +82,7 @@ public class CardBehaviour : MonoBehaviour {
         RightText = AddText(0.49f, 0, TextAnchor.MiddleRight, 32);
         BottomText = AddText(0, -0.5f, TextAnchor.LowerCenter, 32);
         CardText = AddText(-0.43f, 0, TextAnchor.UpperLeft, 32);
-        WrapText("What the card does, this may take multiple lines.", CardText, 0.4f);
+        WrapText(State.Text, CardText, 0.4f);
     }
 
     private TextMesh TopText;
@@ -92,23 +91,11 @@ public class CardBehaviour : MonoBehaviour {
     private TextMesh BottomText;
     private TextMesh CardText;
 
-    public struct Stats { public int Top; public int Bottom; public int Left; public int Right; }
-
-    public Stats BaseStats { get; private set; }
-
-    public Stats GetActualStats() { return BaseStats; }
+    public Stats GetActualStats() { return State.BaseStats; }
 
     // Use this for initialization
     void Start () {
         SetupTexture();
-
-        BaseStats = new Stats()
-        {
-            Top = UnityEngine.Random.Range(1, 10),
-            Left = UnityEngine.Random.Range(1, 10),
-            Right = UnityEngine.Random.Range(1, 10),
-            Bottom = UnityEngine.Random.Range(1, 10)
-        };
 	}
 
     private static int lastMouseover = 0;
@@ -141,9 +128,11 @@ public class CardBehaviour : MonoBehaviour {
         {
             SetFocussed(false);
         }
-        if (animationStep < animationStepCount)
+        if (animationStep < animationTime)
         {
-            animationStep++;
+            animationStep += Time.deltaTime;
+            if (animationStep > animationTime)
+                animationStep = animationTime;
             var target = GetTargetPosition();
             currentPosition = new Position()
             {
@@ -155,7 +144,7 @@ public class CardBehaviour : MonoBehaviour {
         {
             previousPosition = currentPosition;
             animationStep = 0;
-            animationStepCount = 20;
+            animationTime = 0.4f;
         }
     }
 
@@ -172,13 +161,13 @@ public class CardBehaviour : MonoBehaviour {
             }
             previousPosition = currentPosition;
             animationStep = 0;
-            animationStepCount = 20;
+            animationTime = 0.4f;
             Focussed = focussed;
         }
     }
 
     public bool Focussed { get; private set; }
-    public Team Owner { get { return Deck.Owner; } }
+    public Team Owner { get { return State.Deck.Owner; } }
 
     private Quaternion RotationalInterpolate()
     {
@@ -197,7 +186,7 @@ public class CardBehaviour : MonoBehaviour {
         while (diff > 180)
             diff -= 360;
 
-        return old + diff * animationStep / animationStepCount;
+        return old + diff * animationStep / animationTime;
     }
 
     private Vector3 LinearInterpolate()
@@ -209,7 +198,7 @@ public class CardBehaviour : MonoBehaviour {
     {
         var old = getCoordinate(previousPosition.Location);
         var target = getCoordinate(GetTargetPosition().Location);
-        return old + (target - old) * animationStep / animationStepCount;
+        return old + (target - old) * animationStep / animationTime;
     }
 
     private void OnMouseOver()
@@ -221,11 +210,18 @@ public class CardBehaviour : MonoBehaviour {
         }
     }
 
-    public Zone CurrentZone { get; private set; }
+    public void SetState(CardState state)
+    {
+        if(state.CurrentZone != State.CurrentZone)
+        {
+            animationStep = 0;
+        }
+        State = state;
+    }
 
     private int GetCardsInHand()
     {
-        return Deck.GetCardsInHand();
+        return State.Deck.KnownCards.Count;
     }
 
     private int GetCardsInDiscard()
@@ -245,31 +241,15 @@ public class CardBehaviour : MonoBehaviour {
 
     private DeckBehaviour Deck;
 
-    public void Initialize(Zone zone, DeckBehaviour deck, int xIndex = 0, int yIndex = 0, FacingDirection facing = FacingDirection.Up, int stepCount = 60)
+    public void Initialize(CardState state, DeckBehaviour deck)
     {
-        animationStepCount = stepCount;
         Deck = deck;
-        CurrentZone = zone;
-        XIndex = xIndex;
-        YIndex = yIndex;
-        Facing = facing;
+        animationTime = 1f;
+        State = state;
         currentPosition = GetTargetPosition();
-        previousPosition = currentPosition;
-        animationStep = animationStepCount;
-    }
-
-    public void SetLocation(Zone zone, int xIndex = 0, int yIndex = 0, FacingDirection facing = FacingDirection.Up, int stepCount = 60)
-    {
-        previousPosition = currentPosition;
+        previousPosition = GetTargetPosition(Zone.Deck);
         animationStep = 0;
-        CurrentZone = zone;
-        XIndex = xIndex;
-        YIndex = yIndex;
-        Facing = facing;
-        animationStepCount = stepCount;
     }
-
-    public enum FacingDirection { Up = 0, Right = 1, Down = 2, Left = 3 }
 
     private Position previousPosition;
     private Position currentPosition
@@ -290,7 +270,7 @@ public class CardBehaviour : MonoBehaviour {
 
     private bool IsFaceUp()
     {
-        return CurrentZone != Zone.Deck && (Owner == Team.Player || CurrentZone != Zone.Hand);
+        return State.CurrentZone != Zone.Deck && (Owner == Team.Player || State.CurrentZone != Zone.Hand);
     }
 
     private bool MouseOver = false;
@@ -308,6 +288,11 @@ public class CardBehaviour : MonoBehaviour {
 
     private Position GetTargetPosition()
     {
+        return GetTargetPosition(State.CurrentZone);
+    }
+
+    private Position GetTargetPosition(Zone zone)
+    { 
         if(Focussed && IsFaceUp())
         {
             return new Position()
@@ -316,7 +301,7 @@ public class CardBehaviour : MonoBehaviour {
                 Rotation = Quaternion.Euler(-20, 0, 0)
             };
         }
-        switch(CurrentZone)
+        switch(zone)
         {
             case Zone.Hand:
                 var cardsInHand = GetCardsInHand();
@@ -325,13 +310,13 @@ public class CardBehaviour : MonoBehaviour {
                     if (Owner == Team.Player)
                         return new Position()
                         {
-                            Location = new Vector3(XIndex * 0.9f - (cardsInHand - 1) * 0.45f, 2.76f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * XIndex, -4.17f - transform.localScale.y * XIndex + (MouseOver ? 0.2f : 0f)),
+                            Location = new Vector3(State.XIndex * 0.9f - (cardsInHand - 1) * 0.45f, 2.76f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * State.XIndex, -4.17f - transform.localScale.y * State.XIndex + (MouseOver ? 0.2f : 0f)),
                             Rotation = Quaternion.Euler(-20, 0, 0)
                         };
                     else
                         return new Position()
                         {
-                            Location = new Vector3(XIndex * 0.9f - (cardsInHand - 1) * 0.45f, 0.59f + transform.localScale.y * XIndex, 1.64f - transform.localScale.y * XIndex),
+                            Location = new Vector3(State.XIndex * 0.9f - (cardsInHand - 1) * 0.45f, 0.59f + transform.localScale.y * State.XIndex, 1.64f - transform.localScale.y * State.XIndex),
                             Rotation = Quaternion.Euler(260, 0, 180)
                         };
                 }
@@ -340,13 +325,13 @@ public class CardBehaviour : MonoBehaviour {
                     if (Owner == Team.Player)
                         return new Position()
                         {
-                            Location = new Vector3(-1.346f + 2.692f * XIndex / (cardsInHand - 1), 2.76f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * XIndex, -4.17f - transform.localScale.y * XIndex + (MouseOver ? 0.2f : 0f)),
+                            Location = new Vector3(-1.346f + 2.692f * State.XIndex / (cardsInHand - 1), 2.76f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * State.XIndex, -4.17f - transform.localScale.y * State.XIndex + (MouseOver ? 0.2f : 0f)),
                             Rotation = Quaternion.Euler(-20, 0, 0)
                         };
                     else
                         return new Position()
                         {
-                            Location = new Vector3(-1.346f + 2.692f * XIndex / (cardsInHand - 1), 0.59f + transform.localScale.y * XIndex, 1.64f - transform.localScale.y * XIndex),
+                            Location = new Vector3(-1.346f + 2.692f * State.XIndex / (cardsInHand - 1), 0.59f + transform.localScale.y * State.XIndex, 1.64f - transform.localScale.y * State.XIndex),
                             Rotation = Quaternion.Euler(260, 0, 180)
                         };
                     throw new NotImplementedException();//-1.346f to 1.346
@@ -367,33 +352,33 @@ public class CardBehaviour : MonoBehaviour {
             case Zone.InPlay:
                 return new Position()
                 {
-                    Location = new Vector3((XIndex - 1) * 1.1f, transform.localScale.y, (YIndex - 1f) * 1.1f - 0.5f),
-                    Rotation = Quaternion.Euler(0, 90 * (int)Facing, 0)
+                    Location = new Vector3((State.XIndex - 1) * 1.1f, transform.localScale.y, (State.YIndex - 1f) * 1.1f - 0.5f),
+                    Rotation = Quaternion.Euler(0, 90 * (int)State.Facing, 0)
                 };
             case Zone.Discard:
                 if (Owner == Team.Player)
                     return new Position()
                     {
-                        Location = new Vector3(3.65f - 0.1f * Math.Min(10, GetCardsInDiscard() - XIndex - 1), (XIndex + 1) * transform.localScale.y, -2.73f),
+                        Location = new Vector3(3.65f - 0.1f * Math.Min(10, GetCardsInDiscard() - State.XIndex - 1), (State.XIndex + 1) * transform.localScale.y, -2.73f),
                         Rotation = Quaternion.Euler(0, 0, 0)
                     };
                 else
                     return new Position()
                     {
-                        Location = new Vector3(-4.08f + 0.1f * Math.Min(10, GetCardsInDiscard() - XIndex - 1), (XIndex + 1) * transform.localScale.y, 2.026f),
+                        Location = new Vector3(-4.08f + 0.1f * Math.Min(10, GetCardsInDiscard() - State.XIndex - 1), (State.XIndex + 1) * transform.localScale.y, 2.026f),
                         Rotation = Quaternion.Euler(0, 0, 0)
                     };
             case Zone.Banished:
                 if (Owner == Team.Player)
                     return new Position()
                     {
-                        Location = new Vector3(2.55f - 0.1f * Math.Min(10, GetCardsInDiscard()) - 0.1f * Math.Min(10, GetBanishedCards() - XIndex - 1), (XIndex + 1) * transform.localScale.y, -2.73f),
+                        Location = new Vector3(2.55f - 0.1f * Math.Min(10, GetCardsInDiscard()) - 0.1f * Math.Min(10, GetBanishedCards() - State.XIndex - 1), (State.XIndex + 1) * transform.localScale.y, -2.73f),
                         Rotation = Quaternion.Euler(0, 0, 0)
                     };
                 else
                     return new Position()
                     {
-                        Location = new Vector3(-2.98f + 0.1f * Math.Min(10, GetCardsInDiscard()) + 0.1f * Math.Min(10, GetCardsInDiscard() - XIndex - 1), (XIndex + 1) * transform.localScale.y, 2.026f),
+                        Location = new Vector3(-2.98f + 0.1f * Math.Min(10, GetCardsInDiscard()) + 0.1f * Math.Min(10, GetCardsInDiscard() - State.XIndex - 1), (State.XIndex + 1) * transform.localScale.y, 2.026f),
                         Rotation = Quaternion.Euler(0, 0, 0)
                     };
             default:
@@ -423,20 +408,37 @@ public class CardBehaviour : MonoBehaviour {
         }
     }
 
-    public int XIndex { get; private set; }
-    public int YIndex { get; private set; }
-    public FacingDirection Facing { get; private set; }
-    private int animationStep;
-    private int animationStepCount;
+    private float animationStep;
+    private float animationTime;
 
-    public enum Zone
-    {
-        Deck,
-        Hand,
-        Discard,
-        InPlay,
-        Banished
-    }
+    public CardState State { get; private set; }
 }
 
 public enum Team { Player, Opponent }
+
+public class CardState
+{
+    public Guid ID;
+    public DeckState Deck;
+
+    public Zone CurrentZone;
+
+    public int XIndex;
+    public int YIndex;
+    public FacingDirection Facing;
+    public Stats BaseStats;
+    public string Text;
+}
+
+public enum FacingDirection { Up = 0, Right = 1, Down = 2, Left = 3 }
+
+public enum Zone
+{
+    Deck,
+    Hand,
+    Discard,
+    InPlay,
+    Banished
+}
+
+public struct Stats { public int Top; public int Bottom; public int Left; public int Right; }
