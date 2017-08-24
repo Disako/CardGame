@@ -82,7 +82,7 @@ public class DeckBehaviour : MonoBehaviour {
         
         foreach(var existingCard in FindObjectsOfType<CardBehaviour>())
         {
-            if(existingCard.Owner == state.Owner && !state.KnownCards.Any(c => c.ID == existingCard.State.ID))
+            if(existingCard.State.Owner == state.Owner && !state.KnownCards.Any(c => c.ID == existingCard.State.ID))
             {
                 cardsToRemove.Add(existingCard);
             }
@@ -143,6 +143,21 @@ public class DeckState
     public int CardsInDeck = 60;
     public Team Owner;
     public List<CardState> KnownCards;
+
+    public DeckState Clone()
+    {
+        var newState = new DeckState()
+        {
+            CardsInDeck = CardsInDeck,
+            Owner = Owner,
+            KnownCards = new List<CardState>()
+        };
+        foreach (var knownCard in KnownCards)
+        {
+            newState.KnownCards.Add(knownCard.Clone());
+        }
+        return newState;
+    }
 }
 
 

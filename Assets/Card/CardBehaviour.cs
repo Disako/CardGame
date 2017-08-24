@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class CardBehaviour : MonoBehaviour {
@@ -91,7 +92,12 @@ public class CardBehaviour : MonoBehaviour {
     private TextMesh BottomText;
     private TextMesh CardText;
 
-    public Stats GetActualStats() { return State.BaseStats; }
+    public Stats GetActualStats()
+    {
+        if (State.Definition == null)
+            return new Stats();
+        return State.Definition.BaseStats;
+    }
 
     // Use this for initialization
     void Start () {
@@ -167,7 +173,6 @@ public class CardBehaviour : MonoBehaviour {
     }
 
     public bool Focussed { get; private set; }
-    public Team Owner { get { return State.Deck.Owner; } }
 
     private Quaternion RotationalInterpolate()
     {
@@ -212,16 +217,28 @@ public class CardBehaviour : MonoBehaviour {
 
     public void SetState(CardState state)
     {
-        if(state.CurrentZone != State.CurrentZone)
+        if(state.CurrentZone != State.CurrentZone || state.Facing != State.Facing || state.XIndex != State.XIndex || state.YIndex != State.YIndex)
         {
             animationStep = 0;
+            previousPosition = currentPosition;
+            if (state.CurrentZone != State.CurrentZone)
+                animationTime = 1f;
+            else
+                animationTime = 0.4f;
         }
         State = state;
     }
 
+    private DeckBehaviour GetDeck()
+    {
+        return FindObjectsOfType<DeckBehaviour>().SingleOrDefault(d => d.State.Owner == State.Owner);
+    }
+
     private int GetCardsInHand()
     {
-        return State.Deck.KnownCards.Count;
+        var deck = GetDeck();
+        if (deck == null) return 0;
+        return deck.GetCardsInHand();
     }
 
     private int GetCardsInDiscard()
@@ -270,7 +287,7 @@ public class CardBehaviour : MonoBehaviour {
 
     private bool IsFaceUp()
     {
-        return State.CurrentZone != Zone.Deck && (Owner == Team.Player || State.CurrentZone != Zone.Hand);
+        return State.CurrentZone != Zone.Deck && (State.Owner == Team.Player || State.CurrentZone != Zone.Hand);
     }
 
     private bool MouseOver = false;
@@ -307,7 +324,7 @@ public class CardBehaviour : MonoBehaviour {
                 var cardsInHand = GetCardsInHand();
                 if (cardsInHand <= 3)
                 {
-                    if (Owner == Team.Player)
+                    if (State.Owner == Team.Player)
                         return new Position()
                         {
                             Location = new Vector3(State.XIndex * 0.9f - (cardsInHand - 1) * 0.45f, 2.76f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * State.XIndex, -4.17f - transform.localScale.y * State.XIndex + (MouseOver ? 0.2f : 0f)),
@@ -322,7 +339,7 @@ public class CardBehaviour : MonoBehaviour {
                 }
                 else
                 {
-                    if (Owner == Team.Player)
+                    if (State.Owner == Team.Player)
                         return new Position()
                         {
                             Location = new Vector3(-1.346f + 2.692f * State.XIndex / (cardsInHand - 1), 2.76f + (MouseOver ? 0.2f : 0.0f) + transform.localScale.y * State.XIndex, -4.17f - transform.localScale.y * State.XIndex + (MouseOver ? 0.2f : 0f)),
@@ -337,7 +354,7 @@ public class CardBehaviour : MonoBehaviour {
                     throw new NotImplementedException();//-1.346f to 1.346
                 }
             case Zone.Deck:
-                if (Owner == Team.Player)
+                if (State.Owner == Team.Player)
                     return new Position()
                     {
                         Location = new Vector3(-3.65f, (float)GetDeckHeight(), -2.73f),
@@ -356,7 +373,7 @@ public class CardBehaviour : MonoBehaviour {
                     Rotation = Quaternion.Euler(0, 90 * (int)State.Facing, 0)
                 };
             case Zone.Discard:
-                if (Owner == Team.Player)
+                if (State.Owner == Team.Player)
                     return new Position()
                     {
                         Location = new Vector3(3.65f - 0.1f * Math.Min(10, GetCardsInDiscard() - State.XIndex - 1), (State.XIndex + 1) * transform.localScale.y, -2.73f),
@@ -369,7 +386,7 @@ public class CardBehaviour : MonoBehaviour {
                         Rotation = Quaternion.Euler(0, 0, 0)
                     };
             case Zone.Banished:
-                if (Owner == Team.Player)
+                if (State.Owner == Team.Player)
                     return new Position()
                     {
                         Location = new Vector3(2.55f - 0.1f * Math.Min(10, GetCardsInDiscard()) - 0.1f * Math.Min(10, GetBanishedCards() - State.XIndex - 1), (State.XIndex + 1) * transform.localScale.y, -2.73f),
@@ -419,15 +436,43 @@ public enum Team { Player, Opponent }
 public class CardState
 {
     public Guid ID;
-    public DeckState Deck;
+    public Team Owner;
 
     public Zone CurrentZone;
 
     public int XIndex;
     public int YIndex;
     public FacingDirection Facing;
-    public Stats BaseStats;
     public string Text;
+    public CardDefinition Definition;
+
+    public CardState Clone()
+    {
+        return new CardState()
+        {
+            ID = ID,
+            Owner = Owner,
+            CurrentZone = CurrentZone,
+            XIndex = XIndex,
+            YIndex = YIndex,
+            Facing = Facing,
+            Definition = Definition.Clone(),
+            Text = Text
+        };
+    }
+}
+
+public class CardDefinition
+{
+    public Stats BaseStats;
+
+    public CardDefinition Clone()
+    {
+        return new CardDefinition()
+        {
+            BaseStats = BaseStats
+        };
+    }
 }
 
 public enum FacingDirection { Up = 0, Right = 1, Down = 2, Left = 3 }
