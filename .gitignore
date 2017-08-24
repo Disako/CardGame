@@ -2,3 +2,4 @@
 /Library
 *pidb.meta
 *.suo
+/Assets/UnityVS/Editor
