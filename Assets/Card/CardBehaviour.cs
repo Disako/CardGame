@@ -83,7 +83,7 @@ public class CardBehaviour : MonoBehaviour {
         RightText = AddText(0.49f, 0, TextAnchor.MiddleRight, 32);
         BottomText = AddText(0, -0.5f, TextAnchor.LowerCenter, 32);
         CardText = AddText(-0.43f, 0, TextAnchor.UpperLeft, 32);
-        WrapText(State.Text, CardText, 0.4f);
+        WrapText(State.Definition.Text, CardText, 0.4f);
     }
 
     private TextMesh TopText;
@@ -431,7 +431,7 @@ public class CardBehaviour : MonoBehaviour {
     public CardState State { get; private set; }
 }
 
-public enum Team { Player, Opponent }
+public enum Team { Player = 0, Opponent = 1 }
 
 public class CardState
 {
@@ -443,7 +443,6 @@ public class CardState
     public int XIndex;
     public int YIndex;
     public FacingDirection Facing;
-    public string Text;
     public CardDefinition Definition;
 
     public CardState Clone()
@@ -456,8 +455,7 @@ public class CardState
             XIndex = XIndex,
             YIndex = YIndex,
             Facing = Facing,
-            Definition = Definition.Clone(),
-            Text = Text
+            Definition = Definition == null ? null : Definition.Clone()
         };
     }
 }
@@ -465,12 +463,14 @@ public class CardState
 public class CardDefinition
 {
     public Stats BaseStats;
+    public string Text;
 
     public CardDefinition Clone()
     {
         return new CardDefinition()
         {
-            BaseStats = BaseStats
+            BaseStats = BaseStats,
+            Text = Text
         };
     }
 }
