@@ -263,8 +263,8 @@ public class CardBehaviour : MonoBehaviour {
         Deck = deck;
         animationTime = 1f;
         State = state;
-        currentPosition = GetTargetPosition();
         previousPosition = GetTargetPosition(Zone.Deck);
+        currentPosition = previousPosition;
         animationStep = 0;
     }
 

@@ -96,13 +96,13 @@ public class DeckBehaviour : MonoBehaviour {
 
     // Update is called once per frame
     void Update () {
-        transform.position = new Vector3(transform.position.x, GetDeckHeight(), transform.position.z);
+        transform.position = new Vector3(transform.position.x, -0.5f + GetDeckHeight(), transform.position.z);
 	}
 
     public float GetDeckHeight()
     {
         if (GetCardsInDeck() == 0) return -1f;
-        return -0.5f + Math.Min(0.005f * GetCardsInDeck(), 1f);
+        return Math.Min(0.005f * GetCardsInDeck(), 1f);
     }
 
     public DeckState State { get; private set; }
