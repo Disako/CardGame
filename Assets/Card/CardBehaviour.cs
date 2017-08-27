@@ -436,59 +436,7 @@ public class CardBehaviour : MonoBehaviour {
     public CardState State { get; private set; }
 }
 
-public enum Team { Player = 0, Opponent = 1 }
 
-public class CardState
-{
-    public Guid ID;
-    public Team Owner;
 
-    public Zone CurrentZone;
 
-    public int XIndex;
-    public int YIndex;
-    public FacingDirection Facing;
-    public CardDefinition Definition;
 
-    public CardState Clone()
-    {
-        return new CardState()
-        {
-            ID = ID,
-            Owner = Owner,
-            CurrentZone = CurrentZone,
-            XIndex = XIndex,
-            YIndex = YIndex,
-            Facing = Facing,
-            Definition = Definition == null ? null : Definition.Clone()
-        };
-    }
-}
-
-public class CardDefinition
-{
-    public Stats BaseStats;
-    public string Text;
-
-    public CardDefinition Clone()
-    {
-        return new CardDefinition()
-        {
-            BaseStats = BaseStats,
-            Text = Text
-        };
-    }
-}
-
-public enum FacingDirection { Up = 0, Right = 1, Down = 2, Left = 3 }
-
-public enum Zone
-{
-    Deck,
-    Hand,
-    Discard,
-    InPlay,
-    Banished
-}
-
-public struct Stats { public int Top; public int Bottom; public int Left; public int Right; }
