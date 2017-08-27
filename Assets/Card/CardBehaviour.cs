@@ -104,6 +104,11 @@ public class CardBehaviour : MonoBehaviour {
         SetupTexture();
 	}
 
+    private void OnMouseDown()
+    {
+        BoardBehaviour.DragStart = this;
+    }
+
     private static int lastMouseover = 0;
 
 	// Update is called once per frame
@@ -369,7 +374,7 @@ public class CardBehaviour : MonoBehaviour {
             case Zone.InPlay:
                 return new Position()
                 {
-                    Location = new Vector3((State.XIndex - 1) * 1.1f, transform.localScale.y, (State.YIndex - 1f) * 1.1f - 0.5f),
+                    Location = new Vector3((State.XIndex - 1) * BoardBehaviour.SPACE_WIDTH + BoardBehaviour.SPACE_CENTER_X, transform.localScale.y, (State.YIndex - 1f) * BoardBehaviour.SPACE_HEIGHT + BoardBehaviour.SPACE_CENTER_Z),
                     Rotation = Quaternion.Euler(0, 90 * (int)State.Facing, 0)
                 };
             case Zone.Discard:

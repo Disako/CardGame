@@ -7,7 +7,8 @@ using System.Threading;
 using UnityEngine;
 
 public class BoardBehaviour : MonoBehaviour {
-    
+    public static object DragStart;
+
     private IGameEngine GameEngine;
     private AI AI;
 
@@ -27,14 +28,95 @@ public class BoardBehaviour : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-		
-	}
+        if (Input.GetMouseButtonUp(0))
+        {
+            if(DragStart is CardBehaviour)
+            {
+                var card = DragStart as CardBehaviour;
+                if(card.State.CurrentZone == Zone.Hand && card.State.Owner == Team.Player)
+                {
+                    RaycastHit hit;
+                    var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                    if(Physics.Raycast(ray,out hit))
+                    {
+                        var pointClicked = hit.point;
+                        if(hit.collider.GetComponent<BoardBehaviour>() != null)
+                        {
+                            var square = GetTargetSquare(pointClicked.x, pointClicked.z);
+
+                            if(card.State.Owner == Team.Player && card.State.CurrentZone == Zone.Hand && !State.LocationHasCreature(square.X, square.Y))
+                            {
+                                GameEngine.PlayCreature(card.State.ID, square.X, square.Y, square.Facing);
+                            }
+                        }
+                    }
+                }
+            }
+            DragStart = null;
+        }
+    }
+
+    private SquareTarget GetTargetSquare(float xTar, float zTar)
+    {
+        for (int x = 0; x < 3; x++)
+        {
+            for (int z = 0; z < 3; z++)
+            {
+                var distanceFromLeft = xTar - (x - 1.5f) * SPACE_WIDTH - SPACE_CENTER_X;
+                var distanceFromRight = (x - 0.5f) * SPACE_WIDTH + SPACE_CENTER_X - xTar;
+                var distanceFromBottom = zTar - (z - 1.5f) * SPACE_HEIGHT - SPACE_CENTER_Z;
+                var distanceFromTop = (z - 0.5f) * SPACE_HEIGHT + SPACE_CENTER_Z - zTar;
+                if (distanceFromLeft > 0
+                    && distanceFromRight > 0
+                    && distanceFromTop > 0
+                    && distanceFromBottom > 0)
+                {
+                    FacingDirection facing;
+                    if(distanceFromLeft < distanceFromRight && distanceFromLeft < distanceFromTop && distanceFromLeft < distanceFromBottom)
+                    {
+                        facing = FacingDirection.Left;
+                    }
+                    else if(distanceFromRight < distanceFromTop && distanceFromRight < distanceFromBottom)
+                    {
+                        facing = FacingDirection.Right;
+                    }
+                    else if(distanceFromTop < distanceFromBottom)
+                    {
+                        facing = FacingDirection.Up;
+                    }
+                    else
+                    {
+                        facing = FacingDirection.Down;
+                    }
+                    return new SquareTarget()
+                    {
+                        X = x,
+                        Y = z,
+                        Facing = facing
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
+    private class SquareTarget { public int X; public int Y; public FacingDirection Facing; }
+
+    public static float SPACE_HEIGHT = 1.1f;
+    public static float SPACE_WIDTH = 1.1f;
+    public static float SPACE_CENTER_X = 0f;
+    public static float SPACE_CENTER_Z = -0.5f;
 
     public GameState State;
 }
 
 public class GameState
 {
+    public bool LocationHasCreature(int xPos, int yPos)
+    {
+        return DeckStates.Any(d => d.KnownCards.Any(c => c.CurrentZone == Zone.InPlay && c.XIndex == xPos && c.YIndex == yPos));
+    }
+
     public List<DeckState> DeckStates;
     public Team CurrentPlayer;
 
@@ -61,6 +143,7 @@ public class GameStateEventArgs : EventArgs
 
 public interface IGameEngine
 {
+    void PlayCreature(Guid cardID, int xPos, int yPos, FacingDirection facing);
     GameState GetInitialGameState();
     event EventHandler<GameStateEventArgs> GameStateChanged;
     void DrawCard();
@@ -127,6 +210,24 @@ public class AI
         var potentialActions = new List<PotentialAction>();
         if (currentState.DeckStates.Single(d => d.Owner == Team).CardsInDeck > 0)
             potentialActions.Add(new DrawCardAction(GameEngine, Team));
+
+        foreach (var card in currentState.DeckStates.SingleOrDefault(d => d.Owner == Team).KnownCards.Where(c => c.CurrentZone == Zone.Hand))
+        {
+            for (int x = 0; x < 3; x++)
+            {
+                for (int y = 0; y < 3; y++)
+                {
+                    if(!currentState.LocationHasCreature(x,y))
+                    {
+                        foreach (FacingDirection facing in Enum.GetValues(typeof(FacingDirection)))
+                        {
+                            potentialActions.Add(new PlayCreatureAction(GameEngine, Team, card, x, y, facing));
+                        }
+                    }
+                }
+            }
+        }
+
         return potentialActions;
     }
 
@@ -145,6 +246,31 @@ public class AI
         public abstract void DoAction();
     }
 
+    private class PlayCreatureAction : PotentialAction
+    {
+        public PlayCreatureAction(LocalGameEngine gameEngine, Team team, CardState card, int xPos, int yPos, FacingDirection facing) : base(gameEngine, team)
+        {
+            Card = card;
+            XPos = xPos;
+            YPos = yPos;
+            Facing = facing;
+        }
+
+        private readonly CardState Card;
+        private readonly int XPos, YPos;
+        private readonly FacingDirection Facing;
+
+        public override GameState TryAction(GameState state)
+        {
+            return GameEngine.StateIfPlayCreature(state, Card, XPos, YPos, Facing);
+        }
+
+        public override void DoAction()
+        {
+            GameEngine.PlayCreature(Card, XPos, YPos, Facing);
+        }
+    }
+
     private class DrawCardAction : PotentialAction
     {
         public DrawCardAction(LocalGameEngine gameEngine, Team team) : base(gameEngine, team) { }
@@ -160,9 +286,11 @@ public class AI
         }
     }
 
+    private System.Random RandomForScoring = new System.Random();
+
     private int ScoreGameState(GameState state)
     {
-        return 1;
+        return RandomForScoring.Next();
     }
 
     private readonly LocalGameEngine GameEngine;
@@ -239,6 +367,38 @@ public class LocalGameEngine : IGameEngine
             ReverseCensorGameStateChanged(this, new GameStateEventArgs(GetCensoredGameState(Team.Opponent)));
     }
 
+    private void ResetHandIndexes(DeckState deck)
+    {
+        int x = 0;
+        foreach (var handCard in deck.KnownCards.Where(c => c.CurrentZone == Zone.Hand).OrderBy(c => c.XIndex).ToArray())
+        {
+            handCard.XIndex = x;
+            x++;
+        }
+    }
+
+    public GameState StateIfPlayCreature(GameState oldState, CardState card, int xPos, int yPos, FacingDirection facing)
+    {
+        var newState = oldState.Clone();
+
+        var deck = newState.DeckStates.Single(d => d.Owner == card.Owner);
+        var newCard = deck.KnownCards.SingleOrDefault(c => c.ID == card.ID);
+        newCard.CurrentZone = Zone.InPlay;
+        newCard.XIndex = xPos;
+        newCard.YIndex = yPos;
+        newCard.Facing = facing;
+
+        ResetHandIndexes(deck);
+
+        SwapPlayers(newState);
+        return newState;
+    }
+
+    private void SwapPlayers(GameState state)
+    {
+        state.CurrentPlayer = (Team)(((int)state.CurrentPlayer + 1) % 2);
+    }
+
     public GameState StateIfDrawCard(GameState oldState, Team owner)
     {
         var newState = oldState.Clone();
@@ -248,9 +408,30 @@ public class LocalGameEngine : IGameEngine
         
         newState.DeckStates.Single(s => s.Owner == owner).KnownCards.Add(drawnCard);
         newState.DeckStates.Single(s => s.Owner == owner).CardsInDeck--;
-
-        newState.CurrentPlayer = (Team)(((int)owner + 1) % 2);
+        
+        SwapPlayers(newState);
         return newState;
+    }
+
+    public void PlayCreature(Guid cardID, int xPos, int yPos, FacingDirection facing)
+    {
+        var card = CurrentGameState.DeckStates.Single(d => d.Owner == Team.Player).KnownCards.SingleOrDefault(c => c.ID == cardID);
+        if (card != null)
+            PlayCreature(card, xPos, yPos, facing);
+    }
+
+    private bool PosInRange(int xPos, int yPos)
+    {
+        return xPos >= 0 && xPos < 3 && yPos >= 0 && yPos < 3;
+    }
+
+    public void PlayCreature(CardState card, int xPos, int yPos, FacingDirection facing)
+    {
+        if (card.CurrentZone == Zone.Hand && CurrentGameState.CurrentPlayer == card.Owner && PosInRange(xPos, yPos) && !CurrentGameState.LocationHasCreature(xPos, yPos))
+        {
+            CurrentGameState = StateIfPlayCreature(CurrentGameState, card, xPos, yPos, facing);
+            OnGameStateChanged();
+        }
     }
 
     public void DrawCard()
