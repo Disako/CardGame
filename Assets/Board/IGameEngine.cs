@@ -8,6 +8,7 @@ public interface IGameEngine
     GameState GetInitialGameState();
     event EventHandler<GameStateEventArgs> GameStateChanged;
     void DrawCard();
+    void DoCombat();
 }
 
 public class GameStateEventArgs : EventArgs

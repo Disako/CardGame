@@ -67,6 +67,7 @@ public class AI
         var potentialActions = new List<PotentialAction>();
         if (currentState.DeckStates.Single(d => d.Owner == Team).CardsInDeck > 0)
             potentialActions.Add(new DrawCardAction(GameEngine, Team));
+        potentialActions.Add(new DoCombatAction(GameEngine, Team));
 
         foreach (var card in currentState.DeckStates.SingleOrDefault(d => d.Owner == Team).KnownCards.Where(c => c.CurrentZone == Zone.Hand))
         {
@@ -119,12 +120,27 @@ public class AI
 
         public override GameState TryAction(GameState state)
         {
-            return GameEngine.StateIfPlayCreature(state, Card, XPos, YPos, Facing);
+            return GameEngine.StateIfDoCombat(GameEngine.StateIfPlayCreature(state, Card, XPos, YPos, Facing));
         }
 
         public override void DoAction()
         {
             GameEngine.PlayCreature(Card, XPos, YPos, Facing);
+        }
+    }
+
+    private class DoCombatAction : PotentialAction
+    {
+        public DoCombatAction(LocalGameEngine gameEngine, Team team) : base(gameEngine, team) { }
+
+        public override GameState TryAction(GameState state)
+        {
+            return GameEngine.StateIfDoCombat(state);
+        }
+
+        public override void DoAction()
+        {
+            GameEngine.DoCombat(Team);
         }
     }
 
@@ -134,7 +150,7 @@ public class AI
 
         public override GameState TryAction(GameState state)
         {
-            return GameEngine.StateIfDrawCard(state, Team);
+            return GameEngine.StateIfDoCombat(GameEngine.StateIfDrawCard(state, Team));
         }
 
         public override void DoAction()
@@ -147,7 +163,26 @@ public class AI
 
     private int ScoreGameState(GameState state)
     {
-        return RandomForScoring.Next();
+        int score = 0;
+        foreach(var deck in state.DeckStates)
+        {
+            int cardInHandScore = 10;
+            var multiplier = deck.Owner == Team ? 1 : -1;
+            foreach (var card in deck.KnownCards)
+            {
+                switch (card.CurrentZone)
+                {
+                    case Zone.Hand:
+                        score += cardInHandScore * multiplier;
+                        cardInHandScore--;
+                        break;
+                    case Zone.InPlay:
+                        score += 10 * multiplier;
+                        break;
+                }
+            }
+        }
+        return score;
     }
 
     private readonly LocalGameEngine GameEngine;

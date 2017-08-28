@@ -92,13 +92,6 @@ public class CardBehaviour : MonoBehaviour {
     private TextMesh BottomText;
     private TextMesh CardText;
 
-    public Stats GetActualStats()
-    {
-        if (State.Definition == null)
-            return new Stats();
-        return State.Definition.BaseStats;
-    }
-
     // Use this for initialization
     void Start () {
         SetupTexture();
@@ -117,7 +110,7 @@ public class CardBehaviour : MonoBehaviour {
         {
             if (TopText == null) SetupText();
 
-            var stats = GetActualStats();
+            var stats = State.GetActualStats();
             TopText.text = stats.Top.ToString();
             LeftText.text = stats.Left.ToString();
             BottomText.text = stats.Bottom.ToString();

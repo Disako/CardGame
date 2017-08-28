@@ -27,6 +27,13 @@ public class CardState
             Definition = Definition == null ? null : Definition.Clone()
         };
     }
+
+    public Stats GetActualStats()
+    {
+        if (Definition == null)
+            return new Stats();
+        return Definition.BaseStats;
+    }
 }
 
 public enum FacingDirection { Up = 0, Right = 1, Down = 2, Left = 3 }

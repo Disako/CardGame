@@ -106,6 +106,86 @@ public class LocalGameEngine : IGameEngine
         state.CurrentPlayer = (Team)(((int)state.CurrentPlayer + 1) % 2);
     }
 
+    public void DoCombat()
+    {
+        DoCombat(Team.Player);
+    }
+
+    public void DoCombat(Team owner)
+    {
+        if (owner == CurrentGameState.CurrentPlayer)
+        {
+            CurrentGameState = StateIfDoCombat(CurrentGameState);
+            OnGameStateChanged();
+        }
+    }
+
+    public GameState StateIfDoCombat(GameState originalState)
+    {
+        var newState = originalState.Clone();
+
+        var cards = new CardState[3, 3];
+        for (int x=0;x<3;x++)
+        {
+            for(int y=0;y<3;y++)
+            {
+                cards[x, y] = GetCardAtCoordinates(newState, x, y);
+            }
+        }
+        
+        for (int x = 0; x < 3; x++)
+        {
+            for (int y = 0; y < 3; y++)
+            {
+                if (cards[x, y] != null &&
+                    ((x > 0 && cards[x - 1, y] != null && cards[x - 1, y].Owner != cards[x, y].Owner && GetStatInDirection(cards[x - 1, y], FacingDirection.Right) > GetStatInDirection(cards[x, y], FacingDirection.Left))
+                    || (x < 2 && cards[x + 1, y] != null && cards[x + 1, y].Owner != cards[x, y].Owner && GetStatInDirection(cards[x + 1, y], FacingDirection.Left) > GetStatInDirection(cards[x, y], FacingDirection.Right))
+                    || (y > 0 && cards[x, y - 1] != null && cards[x, y - 1].Owner != cards[x, y].Owner && GetStatInDirection(cards[x, y - 1], FacingDirection.Up) > GetStatInDirection(cards[x, y], FacingDirection.Down))
+                    || (y < 2 && cards[x, y + 1] != null && cards[x, y + 1].Owner != cards[x, y].Owner && GetStatInDirection(cards[x, y + 1], FacingDirection.Down) > GetStatInDirection(cards[x,y],FacingDirection.Up))))
+                {
+                    cards[x, y].CurrentZone = Zone.Discard;
+                }
+            }
+        }
+
+        foreach(var card in cards)
+        {
+            if(card != null && card.CurrentZone == Zone.Discard)
+            {
+                card.Facing = FacingDirection.Up;
+                card.YIndex = 0;
+                card.XIndex = int.MaxValue;
+            }
+        }
+
+        foreach(var deck in newState.DeckStates)
+        {
+            int xIndex = 0;
+            foreach(var card in deck.KnownCards.Where(c => c.CurrentZone == Zone.Discard).OrderBy(c => c.XIndex).ToArray())
+            {
+                card.XIndex = xIndex;
+                xIndex++;
+            }
+        }
+
+        SwapPlayers(newState);
+
+        return newState;
+    }
+
+
+
+    private int GetStatInDirection(CardState state, FacingDirection facing)
+    {
+        var stats = state.GetActualStats();
+        return stats[(FacingDirection)(((int)facing - (int)state.Facing + 4) % 4)];
+    }
+
+    private CardState GetCardAtCoordinates(GameState state, int x, int y)
+    {
+        return state.DeckStates.Select(d => d.KnownCards.FirstOrDefault(c => c.CurrentZone == Zone.InPlay && c.XIndex == x && c.YIndex == y)).FirstOrDefault(c => c != null);
+    }
+
     public GameState StateIfDrawCard(GameState oldState, Team owner)
     {
         var newState = oldState.Clone();

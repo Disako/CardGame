@@ -100,6 +100,12 @@ public class BoardBehaviour : MonoBehaviour {
         return null;
     }
 
+    public void ClickCombat()
+    {
+        if (State.CurrentPlayer == Team.Player)
+            GameEngine.DoCombat();
+    }
+
     private class SquareTarget { public int X; public int Y; public FacingDirection Facing; }
 
     public static float SPACE_HEIGHT = 1.1f;
