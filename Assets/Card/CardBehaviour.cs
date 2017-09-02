@@ -54,7 +54,9 @@ public class CardBehaviour : MonoBehaviour {
         text.transform.localScale = new Vector3(0.025f, 0.025f, 0.025f);
         var mesh = text.AddComponent<TextMesh>();
         mesh.anchor = anchor;
-        mesh.GetComponent<Renderer>().material.shader = textShader;
+        var textMaterial = mesh.GetComponent<Renderer>().material;
+        textMaterial.shader = textShader;
+        textMaterial.color = Color.black;
         mesh.fontSize = fontSize;
         return mesh;
     }

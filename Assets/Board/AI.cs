@@ -44,7 +44,8 @@ public class AI
 
         foreach (var potentialAction in potentialActions)
         {
-            var score = ScoreGameState(potentialAction.TryAction(gameState));
+            var stateAfterAction = potentialAction.TryAction(gameState);
+            var score = Math.Min(ScoreGameState(stateAfterAction), ScoreGameState(GameEngine.StateIfDoCombat(stateAfterAction)));
             if (score > bestScore || bestAction == null)
             {
                 bestScore = score;
@@ -120,7 +121,7 @@ public class AI
 
         public override GameState TryAction(GameState state)
         {
-            return GameEngine.StateIfDoCombat(GameEngine.StateIfPlayCreature(state, Card, XPos, YPos, Facing));
+            return GameEngine.StateIfPlayCreature(state, Card, XPos, YPos, Facing);
         }
 
         public override void DoAction()
@@ -150,7 +151,7 @@ public class AI
 
         public override GameState TryAction(GameState state)
         {
-            return GameEngine.StateIfDoCombat(GameEngine.StateIfDrawCard(state, Team));
+            return GameEngine.StateIfDrawCard(state, Team);
         }
 
         public override void DoAction()
@@ -174,7 +175,8 @@ public class AI
                 {
                     case Zone.Hand:
                         score += cardInHandScore * multiplier;
-                        cardInHandScore--;
+                        if (cardInHandScore > 1)
+                            cardInHandScore--;
                         break;
                     case Zone.InPlay:
                         score += 10 * multiplier;
