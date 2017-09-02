@@ -22,8 +22,8 @@ public class BoardBehaviour : MonoBehaviour {
         GameEngine = gameEngine;
         AI = new AI(gameEngine);
         State = GameEngine.GetInitialGameState();
-        PlayerDeck.Initialize(State.DeckStates.Single(s => s.Owner == Team.Player), GameEngine);
-        OpponentDeck.Initialize(State.DeckStates.Single(s => s.Owner == Team.Opponent), GameEngine);
+        PlayerDeck.Initialize(State.PlayerStates.Single(s => s.Owner == Team.Player), GameEngine);
+        OpponentDeck.Initialize(State.PlayerStates.Single(s => s.Owner == Team.Opponent), GameEngine);
     }
 	
 	// Update is called once per frame

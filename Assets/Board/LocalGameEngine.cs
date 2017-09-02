@@ -10,16 +10,16 @@ public class LocalGameEngine : IGameEngine
     {
         CurrentGameState = new GameState()
         {
-            DeckStates = new List<DeckState>(),
+            PlayerStates = new List<PlayerState>(),
             CurrentPlayer = (Team)UnityEngine.Random.Range((int)Team.Player, (int)Team.Opponent)
         };
-        CurrentGameState.DeckStates.Add(new DeckState()
+        CurrentGameState.PlayerStates.Add(new PlayerState()
         {
             KnownCards = new List<CardState>(),
             CardsInDeck = 60,
             Owner = Team.Player
         });
-        CurrentGameState.DeckStates.Add(new DeckState()
+        CurrentGameState.PlayerStates.Add(new PlayerState()
         {
             KnownCards = new List<CardState>(),
             CardsInDeck = 60,
@@ -74,7 +74,7 @@ public class LocalGameEngine : IGameEngine
             ReverseCensorGameStateChanged(this, new GameStateEventArgs(GetCensoredGameState(Team.Opponent)));
     }
 
-    private void ResetHandIndexes(DeckState deck)
+    private void ResetHandIndexes(PlayerState deck)
     {
         int x = 0;
         foreach (var handCard in deck.KnownCards.Where(c => c.CurrentZone == Zone.Hand).OrderBy(c => c.XIndex).ToArray())
@@ -88,7 +88,7 @@ public class LocalGameEngine : IGameEngine
     {
         var newState = oldState.Clone();
 
-        var deck = newState.DeckStates.Single(d => d.Owner == card.Owner);
+        var deck = newState.PlayerStates.Single(d => d.Owner == card.Owner);
         var newCard = deck.KnownCards.SingleOrDefault(c => c.ID == card.ID);
         newCard.CurrentZone = Zone.InPlay;
         newCard.XIndex = xPos;
@@ -158,14 +158,20 @@ public class LocalGameEngine : IGameEngine
             }
         }
 
-        foreach(var deck in newState.DeckStates)
+        foreach(var player in newState.PlayerStates)
         {
             int xIndex = 0;
-            foreach(var card in deck.KnownCards.Where(c => c.CurrentZone == Zone.Discard).OrderBy(c => c.XIndex).ToArray())
+            foreach(var card in player.KnownCards.Where(c => c.CurrentZone == Zone.Discard).OrderBy(c => c.XIndex).ToArray())
             {
                 card.XIndex = xIndex;
                 xIndex++;
             }
+
+            var inPlayCount = player.KnownCards.Count(c => c.CurrentZone == Zone.InPlay);
+            var enemyInPlayCount = newState.PlayerStates.Where(s => s.Owner != player.Owner).Sum(d => d.KnownCards.Count(c => c.CurrentZone == Zone.InPlay));
+
+            if (inPlayCount < enemyInPlayCount)
+                player.Life += inPlayCount - enemyInPlayCount;
         }
 
         SwapPlayers(newState);
@@ -183,7 +189,7 @@ public class LocalGameEngine : IGameEngine
 
     private CardState GetCardAtCoordinates(GameState state, int x, int y)
     {
-        return state.DeckStates.Select(d => d.KnownCards.FirstOrDefault(c => c.CurrentZone == Zone.InPlay && c.XIndex == x && c.YIndex == y)).FirstOrDefault(c => c != null);
+        return state.PlayerStates.Select(d => d.KnownCards.FirstOrDefault(c => c.CurrentZone == Zone.InPlay && c.XIndex == x && c.YIndex == y)).FirstOrDefault(c => c != null);
     }
 
     public GameState StateIfDrawCard(GameState oldState, Team owner)
@@ -191,10 +197,10 @@ public class LocalGameEngine : IGameEngine
         var newState = oldState.Clone();
         var drawnCard = GetCardsInDeck(owner)[0];
         drawnCard.CurrentZone = Zone.Hand;
-        drawnCard.XIndex = newState.DeckStates.Single(s => s.Owner == owner).KnownCards.Count(c => c.CurrentZone == Zone.Hand);
+        drawnCard.XIndex = newState.PlayerStates.Single(s => s.Owner == owner).KnownCards.Count(c => c.CurrentZone == Zone.Hand);
 
-        newState.DeckStates.Single(s => s.Owner == owner).KnownCards.Add(drawnCard);
-        newState.DeckStates.Single(s => s.Owner == owner).CardsInDeck--;
+        newState.PlayerStates.Single(s => s.Owner == owner).KnownCards.Add(drawnCard);
+        newState.PlayerStates.Single(s => s.Owner == owner).CardsInDeck--;
 
         SwapPlayers(newState);
         return newState;
@@ -202,7 +208,7 @@ public class LocalGameEngine : IGameEngine
 
     public void PlayCreature(Guid cardID, int xPos, int yPos, FacingDirection facing)
     {
-        var card = CurrentGameState.DeckStates.Single(d => d.Owner == Team.Player).KnownCards.SingleOrDefault(c => c.ID == cardID);
+        var card = CurrentGameState.PlayerStates.Single(d => d.Owner == Team.Player).KnownCards.SingleOrDefault(c => c.ID == cardID);
         if (card != null)
             PlayCreature(card, xPos, yPos, facing);
     }
@@ -241,7 +247,7 @@ public class LocalGameEngine : IGameEngine
     private GameState GetCensoredGameState(Team team = Team.Player)
     {
         var state = CurrentGameState.Clone();
-        foreach (var opponentDeck in state.DeckStates.Where(d => d.Owner != team))
+        foreach (var opponentDeck in state.PlayerStates.Where(d => d.Owner != team))
         {
             foreach (var cardInHand in opponentDeck.KnownCards.Where(c => c.CurrentZone == Zone.Hand))
             {

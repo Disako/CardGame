@@ -46,7 +46,7 @@ public class DeckBehaviour : MonoBehaviour {
         SetupTexture();
     }
 
-    public void Initialize(DeckState state, IGameEngine gameEngine)
+    public void Initialize(PlayerState state, IGameEngine gameEngine)
     {
         GameEngine = gameEngine;
         SetState(state);
@@ -55,10 +55,10 @@ public class DeckBehaviour : MonoBehaviour {
 
     private void GameEngine_GameStateChanged(object sender, GameStateEventArgs e)
     {
-        SetState(e.State.DeckStates.Single(s => s.Owner == State.Owner));
+        SetState(e.State.PlayerStates.Single(s => s.Owner == State.Owner));
     }
 
-    private void SetState(DeckState state)
+    private void SetState(PlayerState state)
     {
         foreach(var card in state.KnownCards)
         {
@@ -105,7 +105,7 @@ public class DeckBehaviour : MonoBehaviour {
         return Math.Min(0.005f * GetCardsInDeck(), 1f);
     }
 
-    public DeckState State { get; private set; }
+    public PlayerState State { get; private set; }
 
     private void OnMouseDown()
     {

@@ -7,22 +7,22 @@ public class GameState
 {
     public bool LocationHasCreature(int xPos, int yPos)
     {
-        return DeckStates.Any(d => d.KnownCards.Any(c => c.CurrentZone == Zone.InPlay && c.XIndex == xPos && c.YIndex == yPos));
+        return PlayerStates.Any(d => d.KnownCards.Any(c => c.CurrentZone == Zone.InPlay && c.XIndex == xPos && c.YIndex == yPos));
     }
 
-    public List<DeckState> DeckStates;
+    public List<PlayerState> PlayerStates;
     public Team CurrentPlayer;
 
     public GameState Clone()
     {
         var newState = new GameState()
         {
-            DeckStates = new List<DeckState>(),
+            PlayerStates = new List<PlayerState>(),
             CurrentPlayer = CurrentPlayer
         };
-        foreach (var deckState in DeckStates)
+        foreach (var deckState in PlayerStates)
         {
-            newState.DeckStates.Add(deckState.Clone());
+            newState.PlayerStates.Add(deckState.Clone());
         }
         return newState;
     }

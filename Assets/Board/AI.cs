@@ -66,11 +66,11 @@ public class AI
     private List<PotentialAction> GetPossibleActions(GameState currentState)
     {
         var potentialActions = new List<PotentialAction>();
-        if (currentState.DeckStates.Single(d => d.Owner == Team).CardsInDeck > 0)
+        if (currentState.PlayerStates.Single(d => d.Owner == Team).CardsInDeck > 0)
             potentialActions.Add(new DrawCardAction(GameEngine, Team));
         potentialActions.Add(new DoCombatAction(GameEngine, Team));
 
-        foreach (var card in currentState.DeckStates.SingleOrDefault(d => d.Owner == Team).KnownCards.Where(c => c.CurrentZone == Zone.Hand))
+        foreach (var card in currentState.PlayerStates.SingleOrDefault(d => d.Owner == Team).KnownCards.Where(c => c.CurrentZone == Zone.Hand))
         {
             for (int x = 0; x < 3; x++)
             {
@@ -165,10 +165,16 @@ public class AI
     private int ScoreGameState(GameState state)
     {
         int score = 0;
-        foreach(var deck in state.DeckStates)
+        foreach(var deck in state.PlayerStates)
         {
             int cardInHandScore = 10;
             var multiplier = deck.Owner == Team ? 1 : -1;
+
+            if (deck.Life <= 0)
+                return int.MaxValue * multiplier;
+
+            score += deck.Life * multiplier * 5;
+
             foreach (var card in deck.KnownCards)
             {
                 switch (card.CurrentZone)
