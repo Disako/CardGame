@@ -87,6 +87,7 @@
     <Compile Include="Assets\Card\CardBehaviour.cs" />
     <Compile Include="Assets\Card\CardDefinition.cs" />
     <Compile Include="Assets\Card\CardState.cs" />
+    <Compile Include="Assets\Card\OwnerIndicatorBehaviour.cs" />
     <Compile Include="Assets\Deck\DeckBehaviour.cs" />
     <Compile Include="Assets\Deck\PlayerLifeBehaviour.cs" />
     <Compile Include="Assets\Deck\PlayerState.cs" />
